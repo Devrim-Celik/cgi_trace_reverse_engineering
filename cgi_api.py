@@ -2,13 +2,51 @@ import requests
 import json
 import matplotlib.pyplot as plt
 
-def trace_getter(gate_id=2706):
+def channel_id_getter(family_id=2):
+    # TODO check if 4/IH = Hyperpolarization-activated Channel
     """
-    Returns all 5 traces of a gate id (corresponding to a gate on
+    Given a family id (with 1=Potassium Channel, 2=Sodium Channel,
+    3=Calcium Channel, 4:Hyperpolarization-activated Channel,
+    5:Calcium-dependent Potassium Channel) returns a list with all
+    corresponding channel ids from icg
+
+    Args:
+        family_id (int): family id
+
+    Outputs:
+        id_list (list): list with all ids corresponding to the given family_id
+    """
+
+    id_list = []
+
+    # get response
+    url = "https://icg.neurotheory.ox.ac.uk:443/api/app/families/" + \
+            str(family_id) + "/"
+    response = requests.get(url)
+
+    # check for right response status
+    if (response.status_code != 200):
+        raise ValueError("[!] Response Status from API is not 200, \
+        but instead {}!".format(response.status_code))
+
+    # from byte to json object to pure id lists
+    my_json = response.content.decode("utf8")
+    data = json.loads(my_json)
+
+
+    for counter in range(data["count"]):
+        id_list.append(data["chans"][counter]["id"])
+
+    return id_list
+
+
+def trace_getter(channel_id=2706):
+    """
+    Returns all 5 traces of a channel id (corresponding to a channel on
     https://icg.neurotheory.ox.ac.uk) in a dictionary.
 
     Args:
-        gate_id (int):  id of the gate on icg
+        channel_id (int):  id of the channel on icg
 
     Outputs:
         trace_dict (dict): dictionary with 5 traces: Action Potential,
@@ -20,32 +58,36 @@ def trace_getter(gate_id=2706):
 
     # get response
     url = "https://icg.neurotheory.ox.ac.uk:443/api/app/chs/" + \
-            str(gate_id) + "/traces"
+            str(channel_id) + "/traces"
     response = requests.get(url)
 
     # check for right response status
     if (response.status_code != 200):
-        raise ValueError("Response Status from API is not 200, but instead {}!".\
-        format(response.status_code))
+        raise ValueError("[!] Response Status from API is not 200, \
+        but instead {}!".format(response.status_code))
 
     # from byte to json object to pure data lists
     my_json = response.content.decode("utf8")
     data = json.loads(my_json)
     traces = data["traces"][0]["traces"] # get traces
-    # TODO not only action potential
+
+    # iterate through every trace
     for dict_key in trace_dict.keys():
         trace_dict[dict_key] = traces[dict_key]["data"][0]
 
+
     return trace_dict
+
+
 
 def trace_plotter_complete(trace_dict, trace_id=-1):
     """
-    Plots all 5 traces of a gate id (corresponding to a gate on
+    Plots all 5 traces of a channel id (corresponding to a channel on
     https://icg.neurotheory.ox.ac.uk) in a dictionary.
 
     Args:
-        trace_dict (dict):  dictionary with all traces of a gate
-        gate_id (int):      id of the gate on icg
+        trace_dict (dict):  dictionary with all traces of a channel
+        channel_id (int):      id of the channel on icg
     """
 
     trace_names = ['Activation', 'Inactivation', 'Deactivation',  \
@@ -67,5 +109,39 @@ def trace_plotter_complete(trace_dict, trace_id=-1):
     plt.show()
 
 
-gate_trace_dict = trace_getter()
-trace_plotter_complete(data1, 1504)
+
+def dump_family_as_json_with_trace(family_id=2):
+    # TODO check if 4/IH = Hyperpolarization-activated Channel
+    """
+    Given a family id (with 1=Potassium Channel, 2=Sodium Channel,
+    3=Calcium Channel, 4:Hyperpolarization-activated Channel,
+    5:Calcium-dependent Potassium Channel) it dumps a big dictionary in a
+    json file, which contains all 5 traces of each channel, corresponding
+    to the family
+
+    Args:
+        family_id (int): family id
+    """
+
+    family_id_to_name = {1:"K", 2:"Na", 3:"Ca", 4:"IH", 5:"KCa"}
+    big_dict = {}
+
+    # get all ids of corresponding channels
+    id_list = channel_id_getter(family_id)[0:10]
+    # go through every id and get it trace, save it in a dictionary
+    for _id in id_list:
+        big_dict[_id] = trace_getter(_id)
+
+    # create file name
+    file_name = family_id_to_name[family_id] + "_family.json"
+    # dump finished dictionary in json file
+    with open(file_name, 'w') as fp:
+        json.dump(big_dict, fp)
+
+    print("[+] Saved " + family_id_to_name[family_id] + \
+            " Family Trace in:", file_name)
+
+
+
+if __name__=="__main__":
+    dump_family_as_json_with_trace(2)
