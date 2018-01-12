@@ -40,6 +40,7 @@ def channel_id_getter(family_id=2):
     return id_list
 
 
+
 def trace_getter(channel_id=2706):
     """
     Returns all 5 traces of a channel id (corresponding to a channel on
@@ -55,6 +56,7 @@ def trace_getter(channel_id=2706):
     # all 5 available trace names
     trace_dict = {'Action Potential':[], 'Inactivation':[], 'Activation':[], \
                 'Ramp':[], 'Deactivation':[]}
+    trace_list = []
 
     # get response
     url = "https://icg.neurotheory.ox.ac.uk:443/api/app/chs/" + \
@@ -71,12 +73,19 @@ def trace_getter(channel_id=2706):
     data = json.loads(my_json)
     traces = data["traces"][0]["traces"] # get traces
 
-    # iterate through every trace
+    """
+    # iterate through every trace --> produces dict with 5 keys
     for dict_key in trace_dict.keys():
         trace_dict[dict_key] = traces[dict_key]["data"][0]
+    """
 
+    # iterate through every channel and append them to one big list
+    # TODO done differently in the paper, depending on whether
+    # it was a Ca channel
+    for dict_key in trace_dict.keys():
+        trace_list.extend(traces[dict_key]["data"][0])
 
-    return trace_dict
+    return trace_list
 
 
 
@@ -127,9 +136,10 @@ def dump_family_as_json_with_trace(family_id=2):
     big_dict = {}
 
     # get all ids of corresponding channels
-    id_list = channel_id_getter(family_id)[0:10]
+    id_list = channel_id_getter(family_id)
     # go through every id and get it trace, save it in a dictionary
     for _id in id_list:
+        #trace_plotter_complete(trace_getter(_id))
         big_dict[_id] = trace_getter(_id)
 
     # create file name
